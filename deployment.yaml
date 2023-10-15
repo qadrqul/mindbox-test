@@ -1,0 +1,64 @@
+# Привет ヽ(・∀・)ﾉ
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 4  # Учитывая, что приложение имеет пиковую нагрузку, на которую справляются 4 пода.
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app-container
+        image: your_image_here  # Здесь указываем образ нашего приложения.
+        resources:
+          requests:  
+            cpu: "0.5"  # Больше ресурсов CPU для стартовых запросов.
+            memory: "128Mi"  # Равномерное потребление памяти.
+          limits:
+            cpu: "1"  # Максимальное значение, чтобы избегать проблем с перерасходом.
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /health  # Путь к эндпоинту готовности вашего приложения.
+            port: 80
+          initialDelaySeconds: 10  # Задержка.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: my-app
+              topologyKey: topology.kubernetes.io/zone
+
+---
+
+apiVersion: autoscaling/v2beta2 
+kind: HorizontalPodAutoscaler
+metadata:
+  name: my-app-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: my-app
+  minReplicas: 2  # Ночью.
+  maxReplicas: 6  # Максимум подов на случай непредвиденных пиков нагрузки.
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80  # Масштабирование при достижении 80% потребления CPU.
+
+# Thanks)))
+
